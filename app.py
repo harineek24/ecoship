@@ -27,19 +27,12 @@ st.markdown("""
     .block-container { padding-top: 1rem; }
     [data-testid="stMetricValue"] { font-size: 1.6rem; }
     .stTabs [data-baseweb="tab-list"] {
-        gap: 4px;
-        background-color: #f0f2f6;
-        padding: 6px 8px;
-        border-radius: 10px;
+        gap: 2px;
+        flex-wrap: wrap;
     }
     .stTabs [data-baseweb="tab"] {
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-weight: 500;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: white;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        font-size: 0.85rem;
+        padding: 6px 12px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -126,13 +119,13 @@ idle_share = filtered['idle_fuel_pct'].mean()
 
 # === TABS ===
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "📊 Overview",
-    "🌿 Carbon & Emissions",
-    "🛡️ Safety & Risk",
-    "🏋️ Physical Workload",
-    "👥 Workforce & Retention",
-    "🔗 Cross-Impact Analysis",
-    "⚙️ How It Works"
+    "Overview",
+    "Carbon",
+    "Safety",
+    "Workload",
+    "Workforce",
+    "Cross-Impact",
+    "How It Works"
 ])
 
 # =====================================================
