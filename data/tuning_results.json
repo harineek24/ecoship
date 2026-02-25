@@ -1,0 +1,17 @@
+{
+  "default_auc": 0.8914,
+  "tuned_auc": 0.9498,
+  "improvement_pct": 6.56,
+  "best_cv_auc": 0.7589,
+  "n_trials": 50,
+  "best_params": {
+    "n_estimators": 338,
+    "max_depth": 10,
+    "learning_rate": 0.0188,
+    "min_child_weight": 4,
+    "subsample": 0.8917,
+    "colsample_bytree": 0.87,
+    "reg_alpha": 0.0,
+    "reg_lambda": 6.2927
+  }
+}

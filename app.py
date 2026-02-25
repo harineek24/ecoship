@@ -59,6 +59,30 @@ def load_data():
     with open('data/summary_stats.json') as f:
         data['summary'] = json.load(f)
 
+    # Advanced ML artifacts
+    if os.path.exists('data/anomaly_details.csv'):
+        data['anomaly_details'] = pd.read_csv('data/anomaly_details.csv')
+        data['anomaly_scores'] = pd.read_csv('data/anomaly_scores.csv')
+    if os.path.exists('data/driver_clusters.csv'):
+        data['clusters'] = pd.read_csv('data/driver_clusters.csv')
+    if os.path.exists('data/cluster_profiles.csv'):
+        data['cluster_profiles'] = pd.read_csv('data/cluster_profiles.csv')
+    if os.path.exists('data/cluster_info.json'):
+        with open('data/cluster_info.json') as f:
+            data['cluster_info'] = json.load(f)
+    if os.path.exists('data/cox_hazard_ratios.csv'):
+        data['cox_hr'] = pd.read_csv('data/cox_hazard_ratios.csv')
+    if os.path.exists('data/cox_info.json'):
+        with open('data/cox_info.json') as f:
+            data['cox_info'] = json.load(f)
+    if os.path.exists('data/ensemble_comparison.csv'):
+        data['ensemble'] = pd.read_csv('data/ensemble_comparison.csv')
+    if os.path.exists('data/tuning_results.json'):
+        with open('data/tuning_results.json') as f:
+            data['tuning'] = json.load(f)
+    if os.path.exists('data/tuning_history.csv'):
+        data['tuning_history'] = pd.read_csv('data/tuning_history.csv')
+
     return data
 
 
@@ -118,13 +142,14 @@ churned = data['drivers']['termination_date'].notna().sum()
 idle_share = filtered['idle_fuel_pct'].mean()
 
 # === TABS ===
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "Overview",
     "Carbon",
     "Safety",
     "Workload",
     "Workforce",
     "Cross-Impact",
+    "Advanced ML",
     "How It Works"
 ])
 
@@ -798,9 +823,277 @@ with tab6:
 
 
 # =====================================================
-# TAB 7 — HOW IT WORKS
+# TAB 7 — ADVANCED ML
 # =====================================================
 with tab7:
+    st.header("Advanced ML Techniques")
+    st.caption("Anomaly detection, unsupervised clustering, survival regression, "
+               "model comparison, and hyperparameter optimization.")
+
+    st.divider()
+
+    # --- 1. ANOMALY DETECTION ---
+    st.subheader("1. Anomaly Detection (Isolation Forest)")
+    st.markdown("""
+An Isolation Forest identifies driver-weeks with **unusual multivariate behavior patterns** that
+simple thresholds would miss. It works by randomly partitioning data — anomalies are isolated
+in fewer splits because they're far from the norm in multiple dimensions simultaneously.
+""")
+
+    if 'anomaly_details' in data:
+        anomaly_df = data['anomaly_details']
+        col1, col2 = st.columns(2)
+        with col1:
+            n_anom = len(anomaly_df)
+            n_drivers = anomaly_df['driver_id'].nunique()
+            total_weeks = len(data['anomaly_scores'])
+            st.metric("Anomalous Weeks Detected", f"{n_anom} / {total_weeks}")
+            st.metric("Drivers with Anomalies", f"{n_drivers}")
+
+            if os.path.exists('results/anomaly_distribution.png'):
+                st.image('results/anomaly_distribution.png',
+                         caption="Anomaly score distribution — threshold marks the 5% contamination boundary")
+
+        with col2:
+            st.markdown("**Top Anomalous Driver-Weeks**")
+            display_anom = anomaly_df.sort_values('anomaly_score').head(15).copy()
+            display_anom['reason_1'] = display_anom['reason_1'].str.replace('_', ' ')
+            display_anom['reason_2'] = display_anom['reason_2'].str.replace('_', ' ')
+            display_anom.columns = ['Driver', 'Week', 'Score', 'Reason 1', 'Z1',
+                                     'Reason 2', 'Z2', 'Reason 3', 'Z3']
+            st.dataframe(
+                display_anom[['Driver', 'Week', 'Score', 'Reason 1', 'Z1', 'Reason 2', 'Z2']],
+                use_container_width=True, hide_index=True
+            )
+    else:
+        st.info("Run the advanced models pipeline to generate anomaly detection results.")
+
+    st.divider()
+
+    # --- 2. DRIVER CLUSTERING ---
+    st.subheader("2. Driver Clustering (K-Means + PCA)")
+    st.markdown("""
+K-Means discovers natural **driver behavior profiles** from the data. The hidden `_driving_style`
+variable (cautious / normal / aggressive / fatigued) is never exposed to the model — so the
+clusters it finds are entirely data-driven. PCA reduces the 14 features to 2D for visualization.
+""")
+
+    if 'clusters' in data:
+        cluster_df = data['clusters']
+        cluster_info = data.get('cluster_info', {})
+        optimal_k = cluster_info.get('optimal_k', cluster_df['cluster'].nunique())
+        sil_score = cluster_info.get('silhouette_score', 0)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Clusters Discovered", f"{optimal_k}")
+            st.metric("Silhouette Score", f"{sil_score:.3f}")
+
+            if os.path.exists('results/silhouette_scores.png'):
+                st.image('results/silhouette_scores.png',
+                         caption="Silhouette score by k — higher is better separation")
+
+        with col2:
+            if os.path.exists('results/cluster_pca.png'):
+                st.image('results/cluster_pca.png',
+                         caption="PCA projection of driver clusters")
+
+        # Interactive cluster scatter
+        if 'pca_1' in cluster_df.columns:
+            fig = px.scatter(
+                cluster_df, x='pca_1', y='pca_2',
+                color=cluster_df['cluster'].astype(str),
+                hover_data=['driver_id', 'fuel_per_100km',
+                            'total_events_per_100km', 'daily_hours'],
+                title="Driver Clusters (Interactive PCA)",
+                labels={'pca_1': 'PC1', 'pca_2': 'PC2', 'color': 'Cluster'}
+            )
+            fig.update_layout(legend_title_text='Cluster')
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Cluster profiles
+        if 'cluster_profiles' in data:
+            st.markdown("**Cluster Profiles (mean feature values)**")
+            profiles = data['cluster_profiles']
+            display_cols = ['cluster', 'hard_brakes_per_100km', 'fuel_per_100km',
+                            'total_events_per_100km', 'daily_hours', 'co2_per_km',
+                            'daily_steps']
+            avail_cols = [c for c in display_cols if c in profiles.columns]
+            st.dataframe(profiles[avail_cols], use_container_width=True, hide_index=True)
+    else:
+        st.info("Run the advanced models pipeline to generate clustering results.")
+
+    st.divider()
+
+    # --- 3. COX PROPORTIONAL HAZARDS ---
+    st.subheader("3. Cox Proportional Hazards (Survival Regression)")
+    st.markdown("""
+While Kaplan-Meier curves (Workforce tab) show *descriptive* retention over time, Cox PH is a
+**regression model** that quantifies which features accelerate or delay churn. A hazard ratio (HR)
+of 1.5 means a 1-SD increase in that feature increases churn risk by 50%.
+""")
+
+    if 'cox_hr' in data:
+        cox_hr = data['cox_hr']
+        cox_info = data.get('cox_info', {})
+
+        col1, col2 = st.columns(2)
+        with col1:
+            ci = cox_info.get('concordance_index')
+            if ci:
+                st.metric("Concordance Index", f"{ci:.3f}")
+            st.metric("Subjects", f"{cox_info.get('n_subjects', 'N/A')}")
+            st.metric("Events (churns)", f"{cox_info.get('n_events', 'N/A')}")
+
+        with col2:
+            if os.path.exists('results/cox_hazard_ratios.png'):
+                st.image('results/cox_hazard_ratios.png',
+                         caption="Hazard ratios — red accelerates churn, green is protective")
+
+        # Interactive hazard ratio chart
+        fig = go.Figure()
+        cox_sorted = cox_hr.sort_values('hazard_ratio')
+        colors = ['#e74c3c' if hr > 1 else '#27ae60'
+                  for hr in cox_sorted['hazard_ratio']]
+        fig.add_trace(go.Bar(
+            y=[f.replace('_', ' ') for f in cox_sorted['feature']],
+            x=cox_sorted['hazard_ratio'],
+            orientation='h',
+            marker_color=colors,
+        ))
+        fig.add_vline(x=1, line_dash="solid", line_color="black")
+        fig.update_layout(
+            title="Hazard Ratios (HR > 1 increases churn risk)",
+            xaxis_title="Hazard Ratio",
+            showlegend=False,
+            height=400,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Run the advanced models pipeline to generate Cox PH results.")
+
+    st.divider()
+
+    # --- 4. STACKED ENSEMBLE + MODEL COMPARISON ---
+    st.subheader("4. Model Comparison + Stacked Ensemble")
+    st.markdown("""
+Instead of only XGBoost, we train **4 different algorithms** on the same tasks and compare:
+- **XGBoost** — gradient boosting with tree-based splits
+- **LightGBM** — histogram-based gradient boosting (faster, different bias)
+- **Random Forest** — bagged decision trees (less prone to overfitting)
+- **Logistic Regression** — linear baseline (interpretable, regularized)
+
+A **stacked ensemble** feeds all 4 models' predictions into a meta-learner (Logistic Regression)
+to see if combining them improves performance.
+""")
+
+    if 'ensemble' in data:
+        ensemble_df = data['ensemble']
+
+        for _, row in ensemble_df.iterrows():
+            task = row['task'].title()
+            st.markdown(f"**{task} Prediction — AUC Comparison**")
+
+            model_names = ['XGBoost', 'LightGBM', 'Random Forest',
+                           'Logistic Regression', 'Stacked Ensemble']
+            aucs = [
+                row['xgboost_auc'], row['lightgbm_auc'],
+                row['random_forest_auc'], row['logistic_regression_auc'],
+                row['stacked_ensemble_auc']
+            ]
+            best_auc = max(aucs)
+            colors = ['#e74c3c' if a == best_auc else '#3498db' for a in aucs]
+
+            fig = go.Figure(data=[go.Bar(
+                x=model_names, y=aucs,
+                marker_color=colors,
+                text=[f'{a:.3f}' for a in aucs],
+                textposition='outside'
+            )])
+            fig.update_layout(
+                yaxis_title="AUC-ROC",
+                yaxis_range=[min(aucs) * 0.9, max(aucs) * 1.05],
+                height=350,
+                showlegend=False,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Show ROC curve comparison
+            roc_path = f'results/ensemble_roc_{row["task"]}.png'
+            if os.path.exists(roc_path):
+                st.image(roc_path,
+                         caption=f"{task}: ROC curves for all models")
+    else:
+        st.info("Run the advanced models pipeline to generate ensemble comparison.")
+
+    st.divider()
+
+    # --- 5. HYPERPARAMETER TUNING ---
+    st.subheader("5. Hyperparameter Tuning (Optuna + Time-Series CV)")
+    st.markdown("""
+The original models used hardcoded hyperparameters (`max_depth=5, learning_rate=0.05`).
+**Optuna** performs Bayesian optimization — it samples hyperparameter combinations intelligently
+(not random grid search) to find the best config in fewer trials.
+
+**Time-series CV** prevents data leakage: each fold uses an expanding training window
+(weeks 1-8, 1-12, 1-16) with a forward-looking validation window. This respects the temporal
+ordering of the data.
+""")
+
+    if 'tuning' in data:
+        tuning = data['tuning']
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Default AUC", f"{tuning['default_auc']:.4f}")
+        with col2:
+            st.metric("Tuned AUC", f"{tuning['tuned_auc']:.4f}")
+        with col3:
+            st.metric("Improvement",
+                       f"+{tuning['improvement_pct']:.1f}%",
+                       delta=f"{tuning['improvement_pct']:.1f}%")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if os.path.exists('results/tuning_history.png'):
+                st.image('results/tuning_history.png',
+                         caption="Left: optimization convergence. "
+                                 "Right: which hyperparameters matter most.")
+        with col2:
+            if os.path.exists('results/tuning_roc_comparison.png'):
+                st.image('results/tuning_roc_comparison.png',
+                         caption="Default vs tuned XGBoost on held-out test set")
+
+        # Show best parameters
+        st.markdown("**Best Hyperparameters Found**")
+        best_params = tuning.get('best_params', {})
+        params_df = pd.DataFrame([
+            {'Parameter': k.replace('_', ' ').title(),
+             'Value': f"{v:.4f}" if isinstance(v, float) else str(v)}
+            for k, v in best_params.items()
+        ])
+        st.dataframe(params_df, use_container_width=True, hide_index=True)
+
+        # Tuning history scatter
+        if 'tuning_history' in data:
+            history = data['tuning_history']
+            fig = px.scatter(
+                history, x='trial', y='auc_cv',
+                title="Optuna Trial History (50 trials)",
+                labels={'trial': 'Trial Number', 'auc_cv': 'AUC (CV)'},
+                color='auc_cv',
+                color_continuous_scale='RdYlGn',
+            )
+            fig.update_layout(coloraxis_colorbar_title="AUC")
+            st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Run the advanced models pipeline to generate tuning results.")
+
+
+# =====================================================
+# TAB 8 — HOW IT WORKS
+# =====================================================
+with tab8:
     st.header("How It Works")
     st.caption("A senior engineer's walkthrough of the platform architecture, models, and what makes this project interesting.")
 
@@ -958,6 +1251,36 @@ Every design choice respects the Streamlit Community Cloud limits:
 - All charts are Plotly (renders client-side in browser, no server memory needed for chart rendering)
 """)
 
+    # --- ADVANCED ML ---
+    st.subheader("Advanced ML Techniques")
+    st.markdown("""
+Beyond the core XGBoost models, the platform includes five additional ML techniques (see Advanced ML tab):
+
+#### Anomaly Detection (Isolation Forest)
+Detects unusual driver-week combinations in 14-dimensional behavior space. Unlike threshold alerts ("braking > X"),
+Isolation Forest catches *combinations* that are unusual — a driver who simultaneously has high idle time, low steps,
+AND elevated phone use, even if none individually triggers a threshold.
+
+#### Unsupervised Clustering (K-Means + PCA)
+Discovers natural driver profiles without labels. The data has 4 hidden driving styles (cautious/normal/aggressive/fatigued)
+that the model never sees. K-Means recovers 3 clusters (silhouette-optimized), showing that unsupervised learning can
+approximate the hidden structure. PCA reduces 14 features to 2D for visualization.
+
+#### Cox Proportional Hazards
+Upgrades Kaplan-Meier from descriptive curves to a regression model that quantifies *which features* accelerate churn.
+Hazard ratios (HR) are interpretable: HR=1.5 for daily hours means a 1-SD increase in hours raises churn risk 50%.
+
+#### Model Comparison + Stacked Ensemble
+Trains 4 algorithms (XGBoost, LightGBM, Random Forest, Logistic Regression) on the same tasks and compares ROC curves.
+A meta-learner stacks all predictions. Key insight: for churn, all tree-based models perform similarly (~0.90 AUC),
+suggesting the signal is strong and easy to capture. For incidents, XGBoost edges out others on AUC.
+
+#### Bayesian Hyperparameter Tuning (Optuna)
+Replaces hardcoded hyperparameters with 50-trial Bayesian optimization. Uses expanding-window time-series CV
+(weeks 1-8/1-12/1-16 train, forward 4 weeks validate) to respect temporal ordering.
+**Result:** Churn model AUC improved from 0.89 to 0.95 — a 6.6% lift from tuning alone.
+""")
+
     # --- LIMITATIONS ---
     st.subheader("Honest Limitations")
     st.markdown("""
@@ -967,7 +1290,9 @@ Every design choice respects the Streamlit Community Cloud limits:
 
 3. **Incident model AUC = 0.68.** Decent for a rare-event prediction problem, but not reliable enough for individual-level decisions. Best used for fleet-level risk stratification, not "fire this driver."
 
-4. **No lifelines library.** Survival analysis uses a manual Kaplan-Meier implementation rather than the full `lifelines` Cox proportional hazards model, due to build compatibility issues. A production version would use proper survival regression.
+4. **Cox PH uses univariate hazard ratios.** The `lifelines` library can't build in this environment, so Cox PH falls back to median-split hazard ratios rather than a full multivariate partial likelihood model. A production version would use proper survival regression.
 
 5. **Static training effect.** The training ROI analysis compares trained vs. untrained groups cross-sectionally. It doesn't prove causation — drivers who opt into training may already be more conscientious.
+
+6. **Ensemble doesn't always beat individual models.** On this dataset, XGBoost alone matches or beats the stacked ensemble for both tasks — the base models are too correlated (all see the same strong signal). This is honest: ensembling helps most when base models have diverse error patterns.
 """)

@@ -1,0 +1,10 @@
+feature,hazard_ratio,high_group_churn_rate,low_group_churn_rate,p_value,lower_ci,upper_ci
+age,1.198,0.197,0.165,,,
+experience_years,0.598,0.129,0.216,,,
+daily_hours,0.929,0.173,0.187,,,
+night_driving_pct,1.455,0.213,0.147,,,
+total_events_per_100km,1.455,0.213,0.147,,,
+daily_steps,0.929,0.173,0.187,,,
+daily_lifting_events,1.25,0.2,0.16,,,
+safety_score,0.8,0.16,0.2,,,
+hard_brakes_per_100km,0.822,0.162,0.197,,,

@@ -1,0 +1,4 @@
+cluster,hard_brakes_per_100km,hard_accels_per_100km,speeding_per_100km,phone_use_per_100km,total_events_per_100km,fuel_per_100km,idle_time_pct,daily_hours,daily_km,night_driving_pct,daily_steps,daily_floors,daily_lifting_events,co2_per_km
+0,3.19,2.52,2.29,0.77,12.8,19.34,81.03,3.47,138.38,39.56,1910.39,40.51,4.69,0.45
+1,0.92,0.64,0.43,0.21,3.82,14.55,56.74,3.52,141.17,26.74,1834.21,38.12,4.69,0.34
+2,1.47,1.07,0.84,0.34,6.11,12.75,44.8,3.91,228.23,43.7,858.24,13.57,3.54,0.29
