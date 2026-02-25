@@ -1,12 +1,12 @@
 {
-  "n_drivers": 600,
-  "n_trips": 606227,
-  "n_events": 876428,
-  "n_fuel_records": 606227,
-  "n_activity_records": 1959637,
-  "n_incidents": 356,
-  "churned_drivers": 118,
-  "total_co2_kg": 4131444.4248,
-  "total_distance_km": 11825714.5,
-  "avg_safety_events_per_trip": 1.445709280517034
+  "n_drivers": 2000,
+  "n_trips": 2021403,
+  "n_events": 2979286,
+  "n_fuel_records": 2021403,
+  "n_activity_records": 6541103,
+  "n_incidents": 1186,
+  "churned_drivers": 404,
+  "total_co2_kg": 13798308.8859,
+  "total_distance_km": 39425137.5,
+  "avg_safety_events_per_trip": 1.473870376169423
 }

@@ -804,7 +804,7 @@ with tab6:
     exec_summary = (
         "FLEET INTELLIGENCE PLATFORM - EXECUTIVE SUMMARY\n"
         "================================================\n\n"
-        f"Fleet: 600 drivers, 480 vehicles, 3 regions\n"
+        f"Fleet: 2,000 drivers, 1,600 vehicles, 3 regions\n"
         f"Period: Jan-Jun 2024 (6 months)\n\n"
         f"CARBON: {total_co2/1000:.0f} tons CO2 total, "
         f"{avg_co2_km:.3f} kg/km average\n"
@@ -1133,14 +1133,14 @@ reveal *which weeks* the model focuses on for each prediction.
         st.markdown("""
 **Why the GRU wins with enough data:**
 
-With **480 training drivers** (101 positive), the GRU has enough sequences to learn meaningful
+With **1,600 training drivers** (340 positive), the GRU has abundant sequences to learn
 temporal patterns that XGBoost can't see. The GRU captures *trajectory shapes* — a driver whose
 hard-braking rate doubled over 4 weeks is treated differently from one whose rate was always high.
 XGBoost can only approximate this through manually engineered trend features.
 
 **The lesson:** Deep learning needs scale. On the original 150-driver dataset, XGBoost won easily.
-At 600 drivers, the GRU surpasses it. This demonstrates both *when* to use deep learning and the
-importance of having sufficient data to justify the model complexity.
+At 2,000 drivers, the GRU achieves near-perfect AUC (0.999). This demonstrates both *when* to use
+deep learning and the importance of having sufficient data to justify the model complexity.
 """)
 
         col1, col2 = st.columns(2)
@@ -1210,8 +1210,8 @@ Raw CSVs (65 MB)                 Aggregated CSVs (< 2 MB)     Load CSVs + models
   Save everything ──────────>    Total: ~4 MB repo    ──────>  Loads in < 5 seconds
 ```
 
-**Why this matters:** The raw data is ~250 MB (606K trips, 876K events, 1.96M activity records). But the Streamlit app never touches any of that. It loads only:
-- `weekly_features.csv` (14,599 rows) — the aggregated feature matrix
+**Why this matters:** The raw data is ~800 MB (2M trips, 3M events, 6.5M activity records). But the Streamlit app never touches any of that. It loads only:
+- `weekly_features.csv` (48,687 rows) — the aggregated feature matrix
 - 3 model files (~1.5 MB total)
 - ~10 pre-computed summary CSVs (< 100 KB total)
 - 11 pre-rendered SHAP/analysis plots
@@ -1226,7 +1226,7 @@ This keeps the repo at **4 MB** and cold start under **5 seconds**.
 We don't have real fleet telematics data, so we *generate* it — but we do it carefully so the patterns are realistic and the models learn something real.
 
 **Hidden Variables Drive Everything:**
-Each of the 600 drivers is assigned a hidden `_driving_style` (cautious / normal / aggressive / fatigued) that's never exposed to the models. This style controls:
+Each of the 2,000 drivers is assigned a hidden `_driving_style` (cautious / normal / aggressive / fatigued) that's never exposed to the models. This style controls:
 
 | Style | Hard Brakes/100km | Fuel/100km | Incident Rate |
 |-------|:-:|:-:|:-:|
@@ -1243,7 +1243,7 @@ Each of the 600 drivers is assigned a hidden `_driving_style` (cautious / normal
 - **Fatigue degradation**: "Fatigued" drivers' metrics worsen by 50% over the 6-month window
 - **Seasonal effects**: Winter adds 12% fuel consumption, summer AC adds 5%
 
-**Feature Engineering (14,599 rows x 39 features):**
+**Feature Engineering (48,687 rows x 39 features):**
 Per-driver, per-week aggregation from 5 raw tables. Key design decisions:
 - All rates normalized to per-100km (makes drivers on different routes comparable)
 - 4-week rolling trends computed for key metrics (the *change* in behavior is often more predictive than the level)
@@ -1291,7 +1291,7 @@ Fleet managers need to explain to drivers *why* their score dropped. A black-box
 
     st.markdown("#### 3. Churn Prediction Model")
     st.markdown("""
-**Type:** XGBoost Classifier | **Target:** Driver leaves within 8 weeks | **AUC = 0.96**
+**Type:** XGBoost Classifier | **Target:** Driver leaves within 8 weeks | **AUC = 0.93**
 
 This is the strongest model because the churn signal is deliberately embedded in the data — drivers approaching termination show measurable behavior changes. The model picks up on:
 - **Behavior deterioration trends** (the `_trend` features capture this)
@@ -1364,19 +1364,19 @@ Hazard ratios (HR) are interpretable: HR=1.5 for daily hours means a 1-SD increa
 
 #### Model Comparison + Stacked Ensemble
 Trains 4 algorithms (XGBoost, LightGBM, Random Forest, Logistic Regression) on the same tasks and compares ROC curves.
-A meta-learner stacks all predictions. Key insight: with more data, Random Forest actually beats XGBoost on
-incidents (0.74 vs 0.69), showing that model diversity matters. For churn, LightGBM edges out XGBoost.
+A meta-learner stacks all predictions. Key insight: with 2,000 drivers, all tree-based models converge
+on incidents (~0.69 AUC). For churn, LightGBM edges out XGBoost (0.94 vs 0.93), showing model diversity adds value.
 
 #### Bayesian Hyperparameter Tuning (Optuna)
 Replaces hardcoded hyperparameters with 50-trial Bayesian optimization. Uses expanding-window time-series CV
 (weeks 1-8/1-12/1-16 train, forward 4 weeks validate) to respect temporal ordering.
-**Result:** Churn model AUC improved from 0.96 to 0.97 via tuning alone.
+**Result:** Churn model AUC improved from 0.93 to 0.95 via tuning alone.
 
 #### Sequence Model (Bidirectional GRU + Attention)
 The only deep learning model in the platform. A 2-layer bidirectional GRU reads each driver's full
 26-week behavioral sequence and predicts churn. Attention pooling learns which weeks matter most for each
-driver's prediction. **Result:** GRU AUC = 0.99 vs XGBoost AUC = 0.92 on the same split — the GRU wins
-because it sees the full temporal trajectory, not just individual snapshots. With 480 training drivers,
+driver's prediction. **Result:** GRU AUC = 0.999 vs XGBoost AUC = 0.96 on the same split — the GRU wins
+because it sees the full temporal trajectory, not just individual snapshots. With 1,600 training drivers,
 there's enough data for the sequential patterns to emerge. On the original 150-driver dataset, XGBoost
 won — demonstrating that knowing when DL needs more data is as important as the architecture itself.
 """)

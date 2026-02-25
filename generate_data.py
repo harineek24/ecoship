@@ -3,7 +3,7 @@ Fleet Intelligence Platform - Data Generation Script
 Generates realistic simulated fleet telematics data for a delivery company.
 
 Company Profile:
-- 600 drivers, 480 vehicles (some shared)
+- 2000 drivers, 1600 vehicles (some shared)
 - 3 regions: Northeast (urban-heavy), Southeast (suburban), Midwest (rural)
 - Mix: 80% diesel vans, 15% gas vans, 5% electric vans
 - Time period: 6 months (2024-01-01 to 2024-06-30)
@@ -185,7 +185,7 @@ def generate_trips(drivers_df, n_days=180):
                 trips.append({
                     'trip_id': f'T{trip_id:06d}',
                     'driver_id': driver['driver_id'],
-                    'vehicle_id': f'V{np.random.randint(1, 481):03d}',
+                    'vehicle_id': f'V{np.random.randint(1, 1601):04d}',
                     'vehicle_type': vehicle_type,
                     'date': current.strftime('%Y-%m-%d'),
                     'start_time': current_time.strftime('%H:%M'),
@@ -494,7 +494,7 @@ def generate_incidents(trips_df, drivers_df, events_df):
 
 if __name__ == '__main__':
     print("Generating driver profiles...")
-    drivers_df = generate_drivers(600)
+    drivers_df = generate_drivers(2000)
     print(f"  {len(drivers_df)} drivers")
 
     print("Generating trips...")

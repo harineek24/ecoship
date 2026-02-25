@@ -1,8 +1,8 @@
 {
-  "gru_auc": 0.9937,
-  "xgboost_auc": 0.9155,
-  "n_train_drivers": 480,
-  "n_test_drivers": 120,
+  "gru_auc": 0.9994,
+  "xgboost_auc": 0.9569,
+  "n_train_drivers": 1600,
+  "n_test_drivers": 400,
   "n_features": 22,
   "max_seq_len": 26,
   "n_epochs": 50,

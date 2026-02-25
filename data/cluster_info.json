@@ -1,8 +1,8 @@
 {
   "explained_variance_ratio": [
-    0.49361803913556673,
-    0.32074733811224804
+    0.4719826188712697,
+    0.34171520684139944
   ],
-  "optimal_k": 7,
-  "silhouette_score": 0.3914
+  "optimal_k": 8,
+  "silhouette_score": 0.407
 }

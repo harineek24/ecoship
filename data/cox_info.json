@@ -1,6 +1,6 @@
 {
   "concordance_index": null,
-  "n_subjects": 600,
-  "n_events": 118,
+  "n_subjects": 2000,
+  "n_events": 404,
   "note": "lifelines not available, univariate HRs only"
 }
