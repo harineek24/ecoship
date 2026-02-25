@@ -1253,6 +1253,29 @@ Per-driver, per-week aggregation from 5 raw tables. Key design decisions:
     # --- MODELS ---
     st.subheader("The Models")
 
+    # --- MODEL COMPARISON TABLE ---
+    st.markdown("#### Model Performance Summary")
+    st.markdown("""
+All models trained on 2,000 simulated drivers (48,687 weekly observations). Temporal train/test split prevents data leakage.
+""")
+
+    comparison_rows = [
+        {"Model": "Carbon (XGBoost Regressor)", "Task": "CO2 per km", "Metric": "R²", "Score": "0.91", "Notes": "Behavior explains 91% of emission variance"},
+        {"Model": "Incident (XGBoost Classifier)", "Task": "Incident in 4 weeks", "Metric": "AUC", "Score": "0.69", "Notes": "Realistic for rare-event prediction"},
+        {"Model": "Churn (XGBoost Classifier)", "Task": "Driver leaves in 8 weeks", "Metric": "AUC", "Score": "0.93", "Notes": "Strong behavioral churn signal"},
+        {"Model": "Churn (Tuned XGBoost)", "Task": "Driver leaves in 8 weeks", "Metric": "AUC", "Score": "0.95", "Notes": "+2% from Bayesian hyperparameter tuning"},
+        {"Model": "Churn (LightGBM)", "Task": "Driver leaves in 8 weeks", "Metric": "AUC", "Score": "0.94", "Notes": "Edges out default XGBoost"},
+        {"Model": "Churn (GRU + Attention)", "Task": "Driver leaves in 8 weeks", "Metric": "AUC", "Score": "0.999", "Notes": "Near-perfect — temporal patterns dominate"},
+    ]
+    comparison_df = pd.DataFrame(comparison_rows)
+    st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+
+    st.markdown("""
+**Key takeaway:** The GRU sequence model crushes flat-feature models on churn prediction because
+churn is fundamentally a *trajectory* problem — it's the change over time that matters, not any single week's snapshot.
+The incident model plateaus at ~0.69 regardless of algorithm, confirming incidents are partly stochastic.
+""")
+
     st.markdown("#### 1. Carbon Emissions Model")
     st.markdown("""
 **Type:** XGBoost Regressor | **Target:** CO2 per km | **R² = 0.91**
