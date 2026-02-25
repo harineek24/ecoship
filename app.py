@@ -448,7 +448,7 @@ with tab4:
                          'daily_steps': 'Avg Daily Steps',
                          'total_events_per_100km': 'Safety Events per 100km'
                      },
-                     trendline='ols')
+                     )
     st.plotly_chart(fig, use_container_width=True)
 
 
