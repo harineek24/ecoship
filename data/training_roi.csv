@@ -1,0 +1,3 @@
+training_type,metric,trained_avg,untrained_avg,improvement_pct,n_trained_drivers,total_cost,estimated_annual_savings,roi
+eco_driving,Fuel per 100km (L),15.68,15.63,-0.3,792,158400,-1003.0,-0.0
+defensive_driving,Hard Brakes per 100km,1.69,2.05,17.6,999,199800,8824.0,0.0
