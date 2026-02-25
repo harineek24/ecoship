@@ -1187,7 +1187,7 @@ deep learning and the importance of having sufficient data to justify the model 
 # =====================================================
 with tab8:
     st.header("How It Works")
-    st.caption("A senior engineer's walkthrough of the platform architecture, models, and what makes this project interesting.")
+    st.caption("A walkthrough of the platform architecture, models, and what makes this project interesting.")
 
     st.divider()
 
