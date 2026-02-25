@@ -126,7 +126,8 @@ with st.sidebar:
     )
 
     st.divider()
-    st.caption(f"150 drivers | 120 vehicles | 6 months")
+    n_drivers = data['summary'].get('n_drivers', 150)
+    st.caption(f"{n_drivers} drivers | {int(n_drivers*0.8)} vehicles | 6 months")
     st.caption(f"Total CO2: {data['summary']['total_co2_kg']/1000:.0f} tons")
     st.caption(f"Total distance: {data['summary']['total_distance_km']/1e6:.1f}M km")
 
@@ -803,7 +804,7 @@ with tab6:
     exec_summary = (
         "FLEET INTELLIGENCE PLATFORM - EXECUTIVE SUMMARY\n"
         "================================================\n\n"
-        f"Fleet: 150 drivers, 120 vehicles, 3 regions\n"
+        f"Fleet: 600 drivers, 480 vehicles, 3 regions\n"
         f"Period: Jan-Jun 2024 (6 months)\n\n"
         f"CARBON: {total_co2/1000:.0f} tons CO2 total, "
         f"{avg_co2_km:.3f} kg/km average\n"
@@ -1130,15 +1131,16 @@ reveal *which weeks* the model focuses on for each prediction.
                        delta_color="normal" if gap > 0 else "inverse")
 
         st.markdown("""
-**Why XGBoost wins here (and why that's the right lesson):**
+**Why the GRU wins with enough data:**
 
-With only **120 training drivers** (21 positive), the GRU doesn't have enough data to learn
-meaningful temporal patterns. Deep learning needs scale — thousands of drivers, not hundreds.
-XGBoost's inductive bias (tree splits on individual features) is better suited to small tabular data.
+With **480 training drivers** (101 positive), the GRU has enough sequences to learn meaningful
+temporal patterns that XGBoost can't see. The GRU captures *trajectory shapes* — a driver whose
+hard-braking rate doubled over 4 weeks is treated differently from one whose rate was always high.
+XGBoost can only approximate this through manually engineered trend features.
 
-On a real fleet with 5,000+ drivers, the GRU would likely close the gap or surpass XGBoost,
-because it can learn temporal patterns that no amount of manual feature engineering can capture.
-**Knowing when NOT to use deep learning is as important as knowing how to build it.**
+**The lesson:** Deep learning needs scale. On the original 150-driver dataset, XGBoost won easily.
+At 600 drivers, the GRU surpasses it. This demonstrates both *when* to use deep learning and the
+importance of having sufficient data to justify the model complexity.
 """)
 
         col1, col2 = st.columns(2)
@@ -1208,8 +1210,8 @@ Raw CSVs (65 MB)                 Aggregated CSVs (< 2 MB)     Load CSVs + models
   Save everything ──────────>    Total: ~4 MB repo    ──────>  Loads in < 5 seconds
 ```
 
-**Why this matters:** The raw data is ~65 MB (151K trips, 198K events, 490K activity records). But the Streamlit app never touches any of that. It loads only:
-- `weekly_features.csv` (3,665 rows) — the aggregated feature matrix
+**Why this matters:** The raw data is ~250 MB (606K trips, 876K events, 1.96M activity records). But the Streamlit app never touches any of that. It loads only:
+- `weekly_features.csv` (14,599 rows) — the aggregated feature matrix
 - 3 model files (~1.5 MB total)
 - ~10 pre-computed summary CSVs (< 100 KB total)
 - 11 pre-rendered SHAP/analysis plots
@@ -1224,7 +1226,7 @@ This keeps the repo at **4 MB** and cold start under **5 seconds**.
 We don't have real fleet telematics data, so we *generate* it — but we do it carefully so the patterns are realistic and the models learn something real.
 
 **Hidden Variables Drive Everything:**
-Each of the 150 drivers is assigned a hidden `_driving_style` (cautious / normal / aggressive / fatigued) that's never exposed to the models. This style controls:
+Each of the 600 drivers is assigned a hidden `_driving_style` (cautious / normal / aggressive / fatigued) that's never exposed to the models. This style controls:
 
 | Style | Hard Brakes/100km | Fuel/100km | Incident Rate |
 |-------|:-:|:-:|:-:|
@@ -1241,7 +1243,7 @@ Each of the 150 drivers is assigned a hidden `_driving_style` (cautious / normal
 - **Fatigue degradation**: "Fatigued" drivers' metrics worsen by 50% over the 6-month window
 - **Seasonal effects**: Winter adds 12% fuel consumption, summer AC adds 5%
 
-**Feature Engineering (3,665 rows x 39 features):**
+**Feature Engineering (14,599 rows x 39 features):**
 Per-driver, per-week aggregation from 5 raw tables. Key design decisions:
 - All rates normalized to per-100km (makes drivers on different routes comparable)
 - 4-week rolling trends computed for key metrics (the *change* in behavior is often more predictive than the level)
@@ -1253,9 +1255,9 @@ Per-driver, per-week aggregation from 5 raw tables. Key design decisions:
 
     st.markdown("#### 1. Carbon Emissions Model")
     st.markdown("""
-**Type:** XGBoost Regressor | **Target:** CO2 per km | **R² = 0.88**
+**Type:** XGBoost Regressor | **Target:** CO2 per km | **R² = 0.91**
 
-This model predicts how much CO2 a driver emits per kilometer, based on their behavior. The high R² means driving behavior explains ~88% of the variance in emissions.
+This model predicts how much CO2 a driver emits per kilometer, based on their behavior. The high R² means driving behavior explains ~91% of the variance in emissions.
 
 **What SHAP tells us:** Idle fuel percentage and hard acceleration are the two biggest knobs. A driver who idles 50% less and smooths their acceleration can cut emissions ~18%.
 
@@ -1270,9 +1272,9 @@ The sliders just do arithmetic: `total_reduction = slider_pct * coefficient`. In
 
     st.markdown("#### 2. Safety / Incident Prediction Model")
     st.markdown("""
-**Type:** XGBoost Classifier (cost-sensitive) | **Target:** Incident in next 4 weeks | **AUC = 0.68**
+**Type:** XGBoost Classifier (cost-sensitive) | **Target:** Incident in next 4 weeks | **AUC = 0.69**
 
-**Why 0.68 and not 0.95?** This is actually realistic for incident prediction. Incidents are rare (~5% positive rate) and partly random. An AUC of 0.68 means the model is meaningfully better than random at ranking drivers by risk, even if it can't predict individual incidents precisely.
+**Why 0.69 and not 0.95?** This is actually realistic for incident prediction. Incidents are rare (~5% positive rate) and partly random. An AUC of 0.68 means the model is meaningfully better than random at ranking drivers by risk, even if it can't predict individual incidents precisely.
 
 **Class Imbalance Handling:** With only ~5% positive samples, a naive model would just predict "no incident" every time and get 95% accuracy. We use:
 - `scale_pos_weight = n_neg / n_pos` (~20x) — tells XGBoost that missing a positive costs 20x more than a false alarm
@@ -1289,7 +1291,7 @@ Fleet managers need to explain to drivers *why* their score dropped. A black-box
 
     st.markdown("#### 3. Churn Prediction Model")
     st.markdown("""
-**Type:** XGBoost Classifier | **Target:** Driver leaves within 8 weeks | **AUC = 0.90**
+**Type:** XGBoost Classifier | **Target:** Driver leaves within 8 weeks | **AUC = 0.96**
 
 This is the strongest model because the churn signal is deliberately embedded in the data — drivers approaching termination show measurable behavior changes. The model picks up on:
 - **Behavior deterioration trends** (the `_trend` features capture this)
@@ -1362,21 +1364,21 @@ Hazard ratios (HR) are interpretable: HR=1.5 for daily hours means a 1-SD increa
 
 #### Model Comparison + Stacked Ensemble
 Trains 4 algorithms (XGBoost, LightGBM, Random Forest, Logistic Regression) on the same tasks and compares ROC curves.
-A meta-learner stacks all predictions. Key insight: for churn, all tree-based models perform similarly (~0.90 AUC),
-suggesting the signal is strong and easy to capture. For incidents, XGBoost edges out others on AUC.
+A meta-learner stacks all predictions. Key insight: with more data, Random Forest actually beats XGBoost on
+incidents (0.74 vs 0.69), showing that model diversity matters. For churn, LightGBM edges out XGBoost.
 
 #### Bayesian Hyperparameter Tuning (Optuna)
 Replaces hardcoded hyperparameters with 50-trial Bayesian optimization. Uses expanding-window time-series CV
 (weeks 1-8/1-12/1-16 train, forward 4 weeks validate) to respect temporal ordering.
-**Result:** Churn model AUC improved from 0.89 to 0.95 — a 6.6% lift from tuning alone.
+**Result:** Churn model AUC improved from 0.96 to 0.97 via tuning alone.
 
 #### Sequence Model (Bidirectional GRU + Attention)
 The only deep learning model in the platform. A 2-layer bidirectional GRU reads each driver's full
 26-week behavioral sequence and predicts churn. Attention pooling learns which weeks matter most for each
-driver's prediction. **Result:** GRU AUC = 0.58 vs XGBoost AUC = 0.70 — XGBoost wins because 120 training
-drivers isn't enough data for deep learning. This is the *correct* lesson: knowing when NOT to use neural
-networks is as important as knowing how to build them. On a real fleet with thousands of drivers, the GRU
-would likely close the gap.
+driver's prediction. **Result:** GRU AUC = 0.99 vs XGBoost AUC = 0.92 on the same split — the GRU wins
+because it sees the full temporal trajectory, not just individual snapshots. With 480 training drivers,
+there's enough data for the sequential patterns to emerge. On the original 150-driver dataset, XGBoost
+won — demonstrating that knowing when DL needs more data is as important as the architecture itself.
 """)
 
     # --- LIMITATIONS ---
@@ -1386,11 +1388,11 @@ would likely close the gap.
 
 2. **Cross-impact values are estimated.** The intervention ROI table uses domain-knowledge estimates, not causal inference. In production, you'd need A/B testing or at minimum interrupted time series analysis to validate these numbers.
 
-3. **Incident model AUC = 0.68.** Decent for a rare-event prediction problem, but not reliable enough for individual-level decisions. Best used for fleet-level risk stratification, not "fire this driver."
+3. **Incident model AUC = 0.69.** Decent for a rare-event prediction problem, but not reliable enough for individual-level decisions. Best used for fleet-level risk stratification, not "fire this driver."
 
 4. **Cox PH uses univariate hazard ratios.** The `lifelines` library can't build in this environment, so Cox PH falls back to median-split hazard ratios rather than a full multivariate partial likelihood model. A production version would use proper survival regression.
 
 5. **Static training effect.** The training ROI analysis compares trained vs. untrained groups cross-sectionally. It doesn't prove causation — drivers who opt into training may already be more conscientious.
 
-6. **Ensemble doesn't always beat individual models.** On this dataset, XGBoost alone matches or beats the stacked ensemble for both tasks — the base models are too correlated (all see the same strong signal). This is honest: ensembling helps most when base models have diverse error patterns.
+6. **Ensemble meta-learner underperforms.** The stacked ensemble's meta-learner doesn't consistently beat the best individual model. Individual models like Random Forest and LightGBM actually outperform XGBoost on specific tasks with more data, showing model diversity matters — but the stacking layer adds noise rather than signal here.
 """)

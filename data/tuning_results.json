@@ -1,17 +1,17 @@
 {
-  "default_auc": 0.8914,
-  "tuned_auc": 0.9498,
-  "improvement_pct": 6.56,
-  "best_cv_auc": 0.7589,
+  "default_auc": 0.9595,
+  "tuned_auc": 0.9738,
+  "improvement_pct": 1.49,
+  "best_cv_auc": 0.8007,
   "n_trials": 50,
   "best_params": {
-    "n_estimators": 338,
+    "n_estimators": 480,
     "max_depth": 10,
-    "learning_rate": 0.0188,
-    "min_child_weight": 4,
-    "subsample": 0.8917,
-    "colsample_bytree": 0.87,
-    "reg_alpha": 0.0,
-    "reg_lambda": 6.2927
+    "learning_rate": 0.022,
+    "min_child_weight": 5,
+    "subsample": 0.914,
+    "colsample_bytree": 0.6356,
+    "reg_alpha": 0.2597,
+    "reg_lambda": 3.8926
   }
 }
