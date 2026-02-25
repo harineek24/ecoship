@@ -26,13 +26,38 @@ st.markdown("""
 <style>
     .block-container { padding-top: 1rem; }
     [data-testid="stMetricValue"] { font-size: 1.6rem; }
+
+    /* --- Prominent tab navigation --- */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 2px;
+        gap: 4px;
+        background-color: #f0f2f6;
+        padding: 6px 8px;
+        border-radius: 10px;
         flex-wrap: wrap;
     }
     .stTabs [data-baseweb="tab"] {
-        font-size: 0.85rem;
-        padding: 6px 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+        color: #444;
+        background-color: transparent;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #e0e3ea;
+        color: #111;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #ffffff !important;
+        color: #0068c9 !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    }
+    /* Hide default Streamlit tab underline */
+    .stTabs [data-baseweb="tab-highlight"] {
+        display: none;
+    }
+    .stTabs [data-baseweb="tab-border"] {
+        display: none;
     }
 </style>
 """, unsafe_allow_html=True)
