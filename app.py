@@ -121,7 +121,7 @@ with tab1:
         st.metric(
             "Total CO2",
             f"{total_co2/1000:.1f} tons",
-            delta=f"{(data['carbon_monthly'].iloc[-1]['co2_per_km'] - data['carbon_monthly'].iloc[0]['co2_per_km'])/data['carbon_monthly'].iloc[0]['co2_per_km']*100:.1f}% trend",
+            delta=f"{(data['carbon_monthly'].iloc[-1]['co2_per_km'] - data['carbon_monthly'].iloc[0]['co2_per_km']) / max(data['carbon_monthly'].iloc[0]['co2_per_km'], 1e-9) * 100:.1f}% trend",
             delta_color="inverse"
         )
 
