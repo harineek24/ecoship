@@ -1,0 +1,12 @@
+{
+  "n_drivers": 150,
+  "n_trips": 151772,
+  "n_events": 198323,
+  "n_fuel_records": 151772,
+  "n_activity_records": 490777,
+  "n_incidents": 76,
+  "churned_drivers": 27,
+  "total_co2_kg": 1011077.4366,
+  "total_distance_km": 2965682.7,
+  "avg_safety_events_per_trip": 1.3067166539282609
+}

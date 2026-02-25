@@ -1,0 +1,6 @@
+intervention,description,annual_cost,carbon_impact_pct,safety_impact_pct,churn_impact_pct,injury_impact_pct,carbon_savings_usd,incident_savings_usd,retention_savings_usd,total_savings_usd,net_roi
+Eco-driving coaching,Train worst 30% drivers on eco-driving techniques,30000,-18,-12,-8,-5,45000,38000,24000,107000,3.6
+Shift schedule fix,Convert rotating shifts to fixed day/night,10000,-3,-25,-30,-15,8000,52000,66000,126000,12.6
+Route rebalancing,Equalize physical workload across routes,5000,-2,-5,-25,-20,3000,12000,54000,69000,13.8
+Anti-idle auto-off,Install automatic engine shutoff after 60s idle,50000,-15,0,0,0,62000,0,0,62000,1.2
+30% EV replacement,Replace 30% of diesel fleet with electric vans,900000,-30,-2,-3,0,180000,5000,15000,200000,0.2
