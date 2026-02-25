@@ -82,6 +82,13 @@ def load_data():
             data['tuning'] = json.load(f)
     if os.path.exists('data/tuning_history.csv'):
         data['tuning_history'] = pd.read_csv('data/tuning_history.csv')
+    if os.path.exists('data/gru_results.json'):
+        with open('data/gru_results.json') as f:
+            data['gru'] = json.load(f)
+    if os.path.exists('data/gru_training_history.csv'):
+        data['gru_history'] = pd.read_csv('data/gru_training_history.csv')
+    if os.path.exists('data/gru_attention.csv'):
+        data['gru_attention'] = pd.read_csv('data/gru_attention.csv')
 
     return data
 
@@ -1089,6 +1096,89 @@ ordering of the data.
     else:
         st.info("Run the advanced models pipeline to generate tuning results.")
 
+    st.divider()
+
+    # --- 6. SEQUENCE MODEL (GRU) ---
+    st.subheader("6. Sequence Model (Bidirectional GRU + Attention)")
+    st.markdown("""
+XGBoost treats each driver-week as an **independent row** — it can't see the trajectory.
+A GRU (Gated Recurrent Unit) takes the full weekly time series for each driver and learns
+sequential patterns: behavior deterioration over weeks, burnout trajectories, fatigue accumulation.
+
+**Architecture:**
+- **Bidirectional GRU** (2 layers, hidden=64) — reads the sequence forwards and backwards
+- **Attention pooling** — learns which weeks matter most (instead of just using the last week)
+- **Binary classifier head** — predicts churn probability from the attended representation
+
+**Why attention matters:** A driver who had one terrible week 2 months ago but has been
+fine since is very different from one who's been gradually degrading. Attention weights
+reveal *which weeks* the model focuses on for each prediction.
+""")
+
+    if 'gru' in data:
+        gru = data['gru']
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("GRU AUC", f"{gru['gru_auc']:.4f}")
+        with col2:
+            st.metric("XGBoost AUC (same split)", f"{gru['xgboost_auc']:.4f}")
+        with col3:
+            gap = gru['gru_auc'] - gru['xgboost_auc']
+            st.metric("Gap", f"{gap:+.4f}",
+                       delta=f"{'GRU wins' if gap > 0 else 'XGBoost wins'}",
+                       delta_color="normal" if gap > 0 else "inverse")
+
+        st.markdown("""
+**Why XGBoost wins here (and why that's the right lesson):**
+
+With only **120 training drivers** (21 positive), the GRU doesn't have enough data to learn
+meaningful temporal patterns. Deep learning needs scale — thousands of drivers, not hundreds.
+XGBoost's inductive bias (tree splits on individual features) is better suited to small tabular data.
+
+On a real fleet with 5,000+ drivers, the GRU would likely close the gap or surpass XGBoost,
+because it can learn temporal patterns that no amount of manual feature engineering can capture.
+**Knowing when NOT to use deep learning is as important as knowing how to build it.**
+""")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if os.path.exists('results/gru_training.png'):
+                st.image('results/gru_training.png',
+                         caption="Left: training loss convergence. "
+                                 "Right: GRU AUC vs XGBoost baseline over epochs.")
+        with col2:
+            if os.path.exists('results/gru_vs_xgboost_roc.png'):
+                st.image('results/gru_vs_xgboost_roc.png',
+                         caption="ROC comparison on the same driver split")
+
+        # Attention heatmap
+        if os.path.exists('results/gru_attention_heatmap.png'):
+            st.markdown("**Attention Weights — What the GRU Focuses On**")
+            st.image('results/gru_attention_heatmap.png',
+                     caption="Top: churned driver — attention spikes near the end (deterioration). "
+                             "Bottom: retained driver — attention is more uniform.")
+
+        # Model architecture details
+        with st.expander("Model Architecture Details"):
+            st.markdown(f"""
+| Component | Value |
+|---|---|
+| Architecture | {gru['architecture']} |
+| Hidden Size | {gru['hidden_size']} |
+| GRU Layers | {gru['num_layers']} |
+| Input Features | {gru['n_features']} |
+| Max Sequence Length | {gru['max_seq_len']} weeks |
+| Training Epochs | {gru['n_epochs']} |
+| Train Drivers | {gru['n_train_drivers']} |
+| Test Drivers | {gru['n_test_drivers']} |
+| Optimizer | AdamW (lr=1e-3, weight_decay=1e-4) |
+| Scheduler | Cosine Annealing |
+| Loss | BCE with pos_weight for class imbalance |
+""")
+    else:
+        st.info("Run the sequence model pipeline to generate GRU results.")
+
 
 # =====================================================
 # TAB 8 — HOW IT WORKS
@@ -1279,6 +1369,14 @@ suggesting the signal is strong and easy to capture. For incidents, XGBoost edge
 Replaces hardcoded hyperparameters with 50-trial Bayesian optimization. Uses expanding-window time-series CV
 (weeks 1-8/1-12/1-16 train, forward 4 weeks validate) to respect temporal ordering.
 **Result:** Churn model AUC improved from 0.89 to 0.95 — a 6.6% lift from tuning alone.
+
+#### Sequence Model (Bidirectional GRU + Attention)
+The only deep learning model in the platform. A 2-layer bidirectional GRU reads each driver's full
+26-week behavioral sequence and predicts churn. Attention pooling learns which weeks matter most for each
+driver's prediction. **Result:** GRU AUC = 0.58 vs XGBoost AUC = 0.70 — XGBoost wins because 120 training
+drivers isn't enough data for deep learning. This is the *correct* lesson: knowing when NOT to use neural
+networks is as important as knowing how to build them. On a real fleet with thousands of drivers, the GRU
+would likely close the gap.
 """)
 
     # --- LIMITATIONS ---
