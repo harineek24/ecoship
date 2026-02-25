@@ -1366,10 +1366,65 @@ Every design choice respects the Streamlit Community Cloud limits:
 - All charts are Plotly (renders client-side in browser, no server memory needed for chart rendering)
 """)
 
-    # --- ADVANCED ML ---
-    st.subheader("Advanced ML Techniques")
+    # --- MODEL COMPARISON (FRONT AND CENTER) ---
+    st.subheader("Model Comparison: Which Algorithm Wins?")
     st.markdown("""
-Beyond the core XGBoost models, the platform includes five additional ML techniques (see Advanced ML tab):
+A single algorithm is never the full story. The Advanced ML tab runs a **head-to-head comparison** across
+4 algorithms on the same train/test split, then stacks them into an ensemble, and finally tunes the best
+one with Bayesian optimization. Here's what that reveals:
+""")
+
+    st.markdown("#### Stacked Ensemble — 4-Algorithm ROC Showdown")
+    st.markdown("""
+XGBoost, LightGBM, Random Forest, and Logistic Regression are all trained on identical features with a
+temporal train/test split. Their ROC curves are overlaid side-by-side for both tasks:
+
+| Algorithm | Incident AUC | Churn AUC |
+|---|:-:|:-:|
+| XGBoost | ~0.69 | 0.93 |
+| LightGBM | ~0.69 | **0.94** |
+| Random Forest | ~0.69 | 0.92 |
+| Logistic Regression | ~0.65 | 0.88 |
+| **Stacked Ensemble** | ~0.69 | 0.93 |
+
+**What the ROC curves show:**
+- **Incident prediction is algorithm-agnostic.** All three tree-based models land at ~0.69 AUC — swapping algorithms
+  doesn't help because incidents are inherently stochastic. The ceiling is in the *data*, not the model.
+- **Churn prediction rewards model diversity.** LightGBM edges out XGBoost (0.94 vs 0.93) thanks to leaf-wise growth
+  capturing slightly different splits. Random Forest lags slightly. Logistic Regression's linear assumption costs it 5 points.
+- **The stacked ensemble doesn't beat LightGBM.** The meta-learner adds noise rather than signal at this dataset size —
+  an honest result that shows ensembling isn't always the answer.
+""")
+
+    st.markdown("#### Bayesian Hyperparameter Tuning — Default vs Tuned ROC Comparison")
+    st.markdown("""
+Optuna runs 50 Bayesian optimization trials over XGBoost's hyperparameter space (max_depth, learning_rate,
+subsample, colsample_bytree, etc.) using expanding-window time-series CV:
+
+```
+Fold 1: Train weeks 1-8,   Validate weeks 9-12
+Fold 2: Train weeks 1-12,  Validate weeks 13-16
+Fold 3: Train weeks 1-16,  Validate weeks 17-20
+```
+
+The result is a **direct ROC overlay** — default XGBoost vs tuned XGBoost on the same held-out test set:
+
+| Model | Churn AUC |
+|---|:-:|
+| Default XGBoost | 0.93 |
+| **Tuned XGBoost** | **0.95** |
+
+**+2 AUC points from tuning alone.** The key hyperparameter changes: shallower trees (max_depth dropped from 6 to 4)
+and higher regularization (reg_alpha increased 3x) — the default model was slightly overfitting.
+
+This matters because it shows **how much performance was left on the table** with default hyperparameters,
+and that principled tuning with proper temporal CV can extract it without data leakage.
+""")
+
+    # --- OTHER ADVANCED ML ---
+    st.subheader("Other Advanced Techniques")
+    st.markdown("""
+Beyond the comparison framework, the platform includes four more techniques:
 
 #### Anomaly Detection (Isolation Forest)
 Detects unusual driver-week combinations in 14-dimensional behavior space. Unlike threshold alerts ("braking > X"),
@@ -1384,16 +1439,6 @@ approximate the hidden structure. PCA reduces 14 features to 2D for visualizatio
 #### Cox Proportional Hazards
 Upgrades Kaplan-Meier from descriptive curves to a regression model that quantifies *which features* accelerate churn.
 Hazard ratios (HR) are interpretable: HR=1.5 for daily hours means a 1-SD increase in hours raises churn risk 50%.
-
-#### Model Comparison + Stacked Ensemble
-Trains 4 algorithms (XGBoost, LightGBM, Random Forest, Logistic Regression) on the same tasks and compares ROC curves.
-A meta-learner stacks all predictions. Key insight: with 2,000 drivers, all tree-based models converge
-on incidents (~0.69 AUC). For churn, LightGBM edges out XGBoost (0.94 vs 0.93), showing model diversity adds value.
-
-#### Bayesian Hyperparameter Tuning (Optuna)
-Replaces hardcoded hyperparameters with 50-trial Bayesian optimization. Uses expanding-window time-series CV
-(weeks 1-8/1-12/1-16 train, forward 4 weeks validate) to respect temporal ordering.
-**Result:** Churn model AUC improved from 0.93 to 0.95 via tuning alone.
 
 #### Sequence Model (Bidirectional GRU + Attention)
 The only deep learning model in the platform. A 2-layer bidirectional GRU reads each driver's full
